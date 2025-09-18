@@ -1,0 +1,77 @@
+package com.carrental.servlets;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+
+/**
+ * Servlet implementation class LoginServlet
+ */
+@WebServlet("/LoginServlet")
+public class LoginServlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+       
+    /**
+     * @see HttpServlet#HttpServlet()
+     */
+    public LoginServlet() {
+        super();
+        // TODO Auto-generated constructor stub
+    }
+
+	/**
+	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		// TODO Auto-generated method stub
+		response.getWriter().append("Served at: ").append(request.getContextPath());
+		 response.setContentType("text/html");
+	       
+	}
+
+	/**
+	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		// TODO Auto-generated method stub
+		doGet(request, response);
+		ServletResponse resp;
+		resp.setContentType("application/json");
+        PrintWriter out = resp.getWriter();
+
+        // Read parameters sent from frontend
+        String email = req.getParameter("email");
+        String password = req.getParameter("password");
+
+        if (email == null || password == null) {
+            out.print("{\"status\":\"fail\",\"message\":\"Email and password required\"}");
+            return;
+        }
+
+        try (Connection con = DBUtil.getConnection()) {
+            String sql = "SELECT * FROM users WHERE email=? AND password=?";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setString(1, email);
+            ps.setString(2, password);
+
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                // Successful login
+                out.print("{\"status\":\"success\",\"user\":\"" + rs.getString("name") + "\",\"role\":\"" + rs.getString("role") + "\"}");
+            } else {
+                // Invalid credentials
+                out.print("{\"status\":\"fail\",\"message\":\"Invalid credentials\"}");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            out.print("{\"status\":\"error\",\"message\":\"Server error\"}");
+        }
+    }
+	}
+
+}

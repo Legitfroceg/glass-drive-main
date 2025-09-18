@@ -1,0 +1,126 @@
+package com.carrental.servlets;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
+import com.carrental.util.DBUtil;
+
+/**
+ * Servlet implementation class CarServlet
+ */
+@WebServlet("/cars")
+public class CarServlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+       
+    /**
+     * @see HttpServlet#HttpServlet()
+     */
+    public CarServlet() {
+        super();
+        // TODO Auto-generated constructor stub
+    }
+
+	/**
+	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		// TODO Auto-generated method stub
+		response.getWriter().append("Served at: ").append(request.getContextPath());
+		PrintWriter out = response.getWriter();
+
+		try (BufferedReader reader = request.getReader(); Connection con = DBUtil.getConnection()) {
+	        Gson gson = new Gson();
+	        Map<String, String> carData = gson.fromJson(reader, Map.class);
+
+	        String make = carData.get("make");
+	        String model = carData.get("model");
+	        int year = carData.get("year") != null ? Integer.parseInt(carData.get("year")) : 0;
+	        double price = carData.get("price_per_hour") != null ? Double.parseDouble(carData.get("price_per_hour")) : 0;
+	        String status = carData.getOrDefault("status", "available");
+	        String imageUrl = carData.get("image_url");
+
+	        if (make == null || model == null) {
+	            out.print("{\"status\":\"fail\",\"message\":\"Make and model required\"}");
+	            return;
+	        }
+
+	        if (!status.equals("available") && !status.equals("booked") && !status.equals("maintenance")) status = "available";
+
+	        String sql = "INSERT INTO cars (make, model, year, price_per_hour, status, image_url) VALUES (?, ?, ?, ?, ?, ?)";
+	        PreparedStatement ps = con.prepareStatement(sql);
+	        ps.setString(1, make);
+	        ps.setString(2, model);
+	        ps.setInt(3, year);
+	        ps.setDouble(4, price);
+	        ps.setString(5, status);
+	        ps.setString(6, imageUrl);
+
+	        int result = ps.executeUpdate();
+	        if (result > 0) out.print("{\"status\":\"success\",\"message\":\"Car added\"}");
+	        else out.print("{\"status\":\"fail\",\"message\":\"Add car failed\"}");
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	        out.print("{\"status\":\"error\",\"message\":\"Server error\"}");
+	    }
+	}
+
+	/**
+	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		// TODO Auto-generated method stub
+		doGet(request, response);
+		response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+
+        String make = request.getParameter("make");
+        String model = request.getParameter("model");
+        String yearStr = request.getParameter("year");
+        String priceStr = request.getParameter("price_per_hour");
+        String status = request.getParameter("status");
+        String imageUrl = request.getParameter("image_url");
+
+        if (make == null || model == null) {
+            out.print("{\"status\":\"fail\",\"message\":\"Make and model required\"}");
+            return;
+        }
+        int year = (yearStr != null) ? Integer.parseInt(yearStr) : 0;
+        double price = (priceStr != null) ? Double.parseDouble(priceStr) : 0;
+
+        if (status == null || (!status.equals("available") && !status.equals("booked") && !status.equals("maintenance"))) {
+            status = "available";
+        }
+
+        try (Connection con = DBUtil.getConnection()) {
+            String sql = "INSERT INTO cars (make, model, year, price_per_hour, status, image_url) VALUES (?, ?, ?, ?, ?, ?)";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setString(1, make);
+            ps.setString(2, model);
+            ps.setInt(3, year);
+            ps.setDouble(4, price);
+            ps.setString(5, status);
+            ps.setString(6, imageUrl);
+
+            int result = ps.executeUpdate();
+            if (result > 0) {
+                out.print("{\"status\":\"success\",\"message\":\"Car added\"}");
+            } else {
+                out.print("{\"status\":\"fail\",\"message\":\"Add car failed\"}");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            out.print("{\"status\":\"error\",\"message\":\"Server error\"}");
+        }
+    }
+		
+	}
+
+

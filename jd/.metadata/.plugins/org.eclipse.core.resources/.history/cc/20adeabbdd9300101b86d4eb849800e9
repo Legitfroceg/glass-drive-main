@@ -1,0 +1,114 @@
+package com.carrental.servlets;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.Map;
+
+import com.carrental.util.DBUtil;
+import com.google.gson.Gson;
+
+/**
+ * Servlet implementation class BookingsServlet
+ */
+@WebServlet("/bookings")
+public class BookingsServlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+       
+    /**
+     * @see HttpServlet#HttpServlet()
+     */
+    public BookingsServlet() {
+        super();
+        // TODO Auto-generated constructor stub
+    }
+
+	/**
+	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		// TODO Auto-generated method stub
+		response.getWriter().append("Served at: ").append(request.getContextPath());
+		PrintWriter out = response.getWriter();
+
+        try (Connection con = DBUtil.getConnection()) {
+            String sql = "SELECT b.id, u.name AS user_name, c.make, c.model, b.start_time, b.end_time, b.status " +
+                         "FROM bookings b " +
+                         "JOIN users u ON b.user_id = u.id " +
+                         "JOIN cars c ON b.car_id = c.id";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("[");
+            while (rs.next()) {
+                sb.append("{");
+                sb.append("\"id\":").append(rs.getInt("id")).append(",");
+                sb.append("\"user_name\":\"").append(rs.getString("user_name")).append("\",");
+                sb.append("\"car_make\":\"").append(rs.getString("make")).append("\",");
+                sb.append("\"car_model\":\"").append(rs.getString("model")).append("\",");
+                sb.append("\"start_time\":\"").append(rs.getString("start_time")).append("\",");
+                sb.append("\"end_time\":\"").append(rs.getString("end_time")).append("\",");
+                sb.append("\"status\":\"").append(rs.getString("status")).append("\"");
+                sb.append("},");
+            }
+            if (sb.charAt(sb.length()-1) == ',') sb.deleteCharAt(sb.length()-1);
+            sb.append("]");
+            out.print(sb.toString());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            out.print("{\"status\":\"error\",\"message\":\"Server error\"}");
+        }
+	}
+
+	/**
+	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		// TODO Auto-generated method stub
+		doGet(request, response);
+		response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+
+        try (BufferedReader reader = request.getReader(); Connection con = DBUtil.getConnection()) {
+            Gson gson = new Gson();
+            Map<String, String> bookingData = gson.fromJson(reader, Map.class);
+
+            int userId = Integer.parseInt(bookingData.get("user_id"));
+            int carId = Integer.parseInt(bookingData.get("car_id"));
+            String startTime = bookingData.get("start_time");
+            String endTime = bookingData.get("end_time");
+
+            if (startTime == null || endTime == null) {
+                out.print("{\"status\":\"fail\",\"message\":\"Missing parameters\"}");
+                return;
+            }
+
+            String sql = "INSERT INTO bookings (user_id, car_id, start_time, end_time, status) VALUES (?, ?, ?, ?, 'active')";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, userId);
+            ps.setInt(2, carId);
+            ps.setString(3, startTime);
+            ps.setString(4, endTime);
+
+            int result = ps.executeUpdate();
+            if (result > 0) out.print("{\"status\":\"success\",\"message\":\"Booking created\"}");
+            else out.print("{\"status\":\"fail\",\"message\":\"Booking failed\"}");
+        } catch (Exception e) {
+            e.printStackTrace();
+            out.print("{\"status\":\"error\",\"message\":\"Server error\"}");
+        }
+    }
+	}
+
+

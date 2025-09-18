@@ -1,0 +1,39 @@
+package com.carrental.servlets;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+
+@WebServlet("/auth/signout")
+public class SignOutServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        // Invalidate the session
+        if (request.getSession(false) != null) {  // Only if session exists
+            request.getSession().invalidate();
+        }
+
+        // Optionally, clear cookies
+        jakarta.servlet.http.Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (jakarta.servlet.http.Cookie cookie : cookies) {
+                cookie.setValue("");
+                cookie.setPath("/");  // Make sure path matches
+                cookie.setMaxAge(0);
+                response.addCookie(cookie);
+            }
+        }
+
+        // Send response
+        response.setContentType("application/json");
+        response.getWriter().print("{\"status\":\"success\",\"message\":\"Signed out\"}");
+    }
+
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        doPost(request, response);
+    }
+}

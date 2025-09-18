@@ -1,0 +1,22 @@
+package com.carrental.test;
+
+import com.carrental.util.DBUtil;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
+
+public class DBTest {
+    public static void main(String[] args) {
+        try (Connection con = DBUtil.getConnection();
+             Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery("SELECT id, email, role FROM users")) {
+
+            while (rs.next()) {
+                System.out.println(rs.getInt("id") + " | " + rs.getString("email") + " | " + rs.getString("role"));
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}

@@ -1,0 +1,110 @@
+package com.carrental.servlets;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.Map;
+
+import com.carrental.util.DBUtil;
+import com.google.gson.Gson;
+
+@WebServlet("/cars/*")
+public class CarServlet extends HttpServlet {
+    private static final long serialVersionUID = 1L;
+
+    public CarServlet() {
+        super();
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+
+        try (Connection con = DBUtil.getConnection()) {
+            String sql = "SELECT * FROM cars";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("[");
+            while (rs.next()) {
+                sb.append("{");
+                sb.append("\"id\":").append(rs.getInt("id")).append(",");
+                sb.append("\"make\":\"").append(rs.getString("make")).append("\",");
+                sb.append("\"model\":\"").append(rs.getString("model")).append("\",");
+                sb.append("\"year\":").append(rs.getInt("year")).append(",");
+                sb.append("\"price_per_hour\":").append(rs.getDouble("price_per_hour")).append(",");
+                sb.append("\"status\":\"").append(rs.getString("status")).append("\",");
+                sb.append("\"image_url\":\"").append(rs.getString("image_url")).append("\"");
+                sb.append("},");
+            }
+            if (sb.charAt(sb.length() - 1) == ',') sb.deleteCharAt(sb.length() - 1);
+            sb.append("]");
+            out.print(sb.toString());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            out.print("{\"status\":\"error\",\"message\":\"Server error\"}");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+
+        try (BufferedReader reader = request.getReader(); Connection con = DBUtil.getConnection()) {
+            Gson gson = new Gson();
+            Map<String, String> carData = gson.fromJson(reader, Map.class);
+
+            String make = carData.get("make");
+            String model = carData.get("model");
+            String yearStr = carData.get("year");
+            String priceStr = carData.get("price_per_hour");
+            String status = carData.getOrDefault("status", "available");
+            String imageUrl = carData.get("image_url");
+
+            if (make == null || model == null) {
+                out.print("{\"status\":\"fail\",\"message\":\"Make and model required\"}");
+                return;
+            }
+
+            int year = (yearStr != null) ? Integer.parseInt(yearStr) : 0;
+            double price = (priceStr != null) ? Double.parseDouble(priceStr) : 0;
+            if (!status.equals("available") && !status.equals("booked") && !status.equals("maintenance")) {
+                status = "available";
+            }
+
+            String sql = "INSERT INTO cars (make, model, year, price_per_hour, status, image_url) VALUES (?, ?, ?, ?, ?, ?)";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setString(1, make);
+            ps.setString(2, model);
+            ps.setInt(3, year);
+            ps.setDouble(4, price);
+            ps.setString(5, status);
+            ps.setString(6, imageUrl);
+
+            int result = ps.executeUpdate();
+            if (result > 0) {
+                out.print("{\"status\":\"success\",\"message\":\"Car added\"}");
+            } else {
+                out.print("{\"status\":\"fail\",\"message\":\"Add car failed\"}");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            out.print("{\"status\":\"error\",\"message\":\"Server error\"}");
+        }
+    }
+}
