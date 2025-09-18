@@ -4,7 +4,7 @@ import path from "path";
 
 export default {
   plugins: [react(), tailwindcss()],
-  base:"/glass-drive-main/"
+  base:"/glass-drive-main/",
   resolve: {
     alias: {
       "@": path.resolve("./src"),
